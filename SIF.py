@@ -86,10 +86,9 @@ class SIFNetwork(object):
         else:
             center = sub.nodes[id]
 
+        visited.add(id)
         for edge in self.nodes[id].edges:
             target_node = edge.target
-            if target_node.id in visited:
-                continue
             if target_node.id not in sub.nodes:
                 new_target = SIFNode(target_node.id)
                 sub.nodes[target_node.id] = new_target
@@ -100,8 +99,6 @@ class SIFNetwork(object):
 
         for edge in self.nodes[id].reverse:
             target_node = edge.target
-            if target_node.id in visited:
-                continue
             if target_node.id not in sub.nodes:
                 new_target = SIFNode(target_node.id)
                 sub.nodes[target_node.id] = new_target
@@ -110,7 +107,6 @@ class SIFNetwork(object):
             center.reverse.append(SIFEdge(edge.type, new_target))
             self._subnetwork(target_node.id, degree-1, sub, visited)
 
-        visited.add(id)
         return sub
 
     def write(self, filename):
