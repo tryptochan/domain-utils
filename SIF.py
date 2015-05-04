@@ -46,13 +46,30 @@ class SIFNetwork(object):
                 target_node.reverse.append(r_edge)
         fp.close()
 
-
     def subnetwork(self, center_id, degree=1):
         """Find the subnetwork with up to a given degree neighbors,
         regardless of direction.
         """
-        return self._subnetwork(center_id, degree)
+        sub = self._subnetwork(center_id, degree)
+        for n in sub.nodes.itervalues():
+            for edge in n.edges:
+                complement_flag = False
+                for r_edge in edge.target.reverse:
+                    if n.id == r_edge.target.id and edge.type == r_edge.type:
+                        complement_flag = True
+                        break
+                if not complement_flag:
+                    edge.target.reverse.append(SIFEdge(edge.type, n))
+            for edge in n.reverse:
+                complement_flag = False
+                for r_edge in edge.target.edges:
+                    if n.id == r_edge.target.id and edge.type == r_edge.type:
+                        complement_flag = True
+                        break
+                if not complement_flag:
+                    edge.target.edges.append(SIFEdge(edge.type, n))
 
+        return sub
 
     def _subnetwork(self, id, degree=1, sub=None, visited=None):
         if degree == 0:
@@ -68,7 +85,6 @@ class SIFNetwork(object):
             sub.nodes[id] = center
         else:
             center = sub.nodes[id]
-        visited.add(id)
 
         for edge in self.nodes[id].edges:
             target_node = edge.target
@@ -80,7 +96,6 @@ class SIFNetwork(object):
             else:
                 new_target = sub.nodes[target_node.id]
             center.edges.append(SIFEdge(edge.type, new_target))
-            new_target.reverse.append(SIFEdge(edge.type, center))
             self._subnetwork(target_node.id, degree-1, sub, visited)
 
         for edge in self.nodes[id].reverse:
@@ -93,9 +108,9 @@ class SIFNetwork(object):
             else:
                 new_target = sub.nodes[target_node.id]
             center.reverse.append(SIFEdge(edge.type, new_target))
-            new_target.edges.append(SIFEdge(edge.type, center))
             self._subnetwork(target_node.id, degree-1, sub, visited)
 
+        visited.add(id)
         return sub
 
     def write(self, filename):
