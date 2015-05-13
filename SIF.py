@@ -109,6 +109,24 @@ class SIFNetwork(object):
 
         return sub
 
+    def split_components(self):
+        """Return a list of connected components.
+
+        For large network, need to raise recursion depth limit.
+        Or rewrite in iterative way.
+        """
+        components = []
+        visited = set()
+        degree = len(self.nodes.keys())
+        for nid in self.nodes.iterkeys():
+            if nid in visited:
+                continue
+            comp = self.subnetwork(nid, degree)
+            visited = visited.union(comp.nodes.iterkeys())
+            components.append(comp)
+
+        return components
+
     def write(self, filename):
         with open(filename, 'w') as fp:
             for node in self.nodes.itervalues():
