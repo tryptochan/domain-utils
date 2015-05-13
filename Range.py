@@ -580,6 +580,91 @@ def trim_seq_range(seq_range, length=5):
             new_range.add_contiguous_range(contig)
     return new_range
 
+def aln2range(query, hit, query_start=1, hit_start=1, gap_tolerance=20):
+    """Convert a alignment with gaps to sequence ranges.
+
+    Consider paired upper cases as aligned positions.
+    Returned sequence range is 1 based.
+    """
+    assert len(query) == len(hit)
+    qseqr = SequenceRange()
+    hseqr = SequenceRange()
+    qcontig_start = None
+    hcontig_start = None
+    qlet_cnt = 0
+    hlet_cnt = 0
+    qlast_pos = 0
+    hlast_pos = 0
+    for aaq, aah in zip(query, hit):
+        if aaq.isalpha():
+            qlet_cnt += 1
+        if aah.isalpha():
+            hlet_cnt += 1
+        if aaq.isalpha() and aaq.isupper() and aah.isalpha() and aah.isupper():
+            if qlet_cnt - qlast_pos - 1 > gap_tolerance:
+                contig = SequenceContiguousRange(query_start+qcontig_start-1, query_start+qlast_pos-1)
+                qseqr.add_contiguous_range(contig)
+                qcontig_start = None
+            if hlet_cnt - hlast_pos - 1 > gap_tolerance:
+                contig = SequenceContiguousRange(hit_start+hcontig_start-1, hit_start+hlast_pos-1)
+                hseqr.add_contiguous_range(contig)
+                hcontig_start = None
+            if not qcontig_start:
+                qcontig_start = qlet_cnt
+            if not hcontig_start:
+                hcontig_start = hlet_cnt
+            qlast_pos = qlet_cnt
+            hlast_pos = hlet_cnt
+
+    if qcontig_start:
+        contig = SequenceContiguousRange(query_start+qcontig_start-1, query_start+qlast_pos-1)
+        qseqr.add_contiguous_range(contig)
+    if hcontig_start:
+        contig = SequenceContiguousRange(hit_start+hcontig_start-1, hit_start+hlast_pos-1)
+        hseqr.add_contiguous_range(contig)
+    return (qseqr, hseqr)
+
+def get_aligned_range(seq_range, query, hit, query_start=1, hit_start=1, **kwargs):
+    """Return corresponding range in the alignment.
+
+    Convert range on the from_sequence to the to_sequence.
+    """
+    assert len(query) == len(hit)
+    q_res = set()
+    for contig in seq_range:
+        q_res = q_res.union(range(contig.start-query_start+1, contig.end-query_start+2))
+    qlet_cnt = 0
+    hlet_cnt = 0
+    h_res = []
+    for aaq, aah in zip(query, hit):
+        if aaq.isalpha():
+            qlet_cnt += 1
+        if aah.isalpha():
+            hlet_cnt += 1
+        if aaq.isalpha() and aaq.isupper() and aah.isalpha() and aah.isupper():
+            if qlet_cnt in q_res:
+                h_res.append(hlet_cnt+hit_start-1)
+    return index2range(h_res, **kwargs)
+
+def index2range(index, gap_tolerance=20, **kwargs):
+    """Convert aligned index of equivalent positions to sequence range."""
+    if not index:
+        return None
+    seq_range = SequenceRange()
+    start = index[0]
+    end = start
+    for i in index:
+        if i - end - 1 <= gap_tolerance:
+            end = i
+        else:
+            contig = SequenceContiguousRange(start, end)
+            seq_range.add_contiguous_range(contig)
+            start = i
+            end = i
+    contig = SequenceContiguousRange(start, end)
+    seq_range.add_contiguous_range(contig)
+    return seq_range
+
 
 class RangeParseError(ParseError):
     """This error means that all the available parsers in the
