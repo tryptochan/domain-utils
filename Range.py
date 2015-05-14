@@ -208,7 +208,11 @@ class SequenceRange(Range):
     def add_contiguous_range(self, contig):
         self.contiguous_ranges.append(contig)
 
+    def get_start(self):
+        return min([contig.get_start() for contig in self.contiguous_ranges])
 
+    def get_end(self):
+        return max([contig.get_end() for contig in self.contiguous_ranges])
 
     def is_sorted(self):
         """Returns True if the fragement is in sorted order in the sequence.
@@ -227,75 +231,6 @@ class SequenceRange(Range):
         else:
             return True
 
-    def get_inversed_range(self, whole_length=None):
-        """Get inversed SequenceRange object.
-        New SequenceRange object will be made.
-
-        Due to the design issue, whole_length should be given
-        to get the inversion after the last fragment.
-        If whole_length is not given, the last inverted fragment might be omitted!
-
-        Note that the inverted ranges will be ordered from low to high indices.
-
-        """
-        sorted_contigs = [(contig.get_start(), contig) for contig in self]
-        sorted_contigs.sort()
-        sorted_range = SequenceRange()
-        for i, contig in sorted_contigs:
-            sorted_range.add_contiguous_range(contig)
-
-        if debug:
-            for i, contig in sorted_contigs:
-                print contig
-
-        new_range = SequenceRange()
-        if not len(self):
-            return None
-
-        #inverted fragment before first contig
-        new_start = 1
-        new_end = sorted_range[0].get_start() - 1
-        if new_start is None or new_end is None:
-            raise SequenceRangeError("Inversion failed before first contig.")
-
-        if new_end >= new_start:
-            new_contig = SequenceContiguousRange(start=new_start, end=new_end)
-            new_range.add_contiguous_range(new_contig)
-
-        for contig1, contig2 in zip(sorted_range[:-1], sorted_range[1:]):
-            new_start = contig1.get_end()
-            new_end = contig2.get_start()
-
-            if new_start is None or new_end is None:
-                raise SequenceRangeError("Inversion failed!")
-
-            new_start = new_start + 1
-            new_end = new_end - 1
-
-            if new_start - new_end == 1:
-                #just breaking point
-                #cannot make any contig...
-                continue
-            elif new_end < new_start:
-                raise SequenceRangeError("Fragment cannot be generated!")
-
-            new_contig = SequenceContiguousRange(start=new_start, end=new_end)
-            new_range.add_contiguous_range(new_contig)
-        else:
-            if whole_length:
-                last_contig = self[-1]
-                new_start = last_contig.get_end() + 1
-                new_end = whole_length
-
-                if new_start <= new_end:
-                    new_contig = SequenceContiguousRange(
-                        start=new_start, end=new_end)
-                    new_range.add_contiguous_range(new_contig)
-
-        if len(new_range):
-            return new_range
-        else:
-            return None
 
     def get_overlap(self, seqrange):
         """Get the intersection between two SequenceRange."""
@@ -313,19 +248,6 @@ class SequenceRange(Range):
             return new_r
         else:
             return None
-
-    def get_overlap_per(self, seq_range):
-        """Calcultae overlap percentage with another range."""
-        overlap_len = 0
-        for contig1 in self.contiguous_ranges:
-            for contig2 in seq_range.contiguous_ranges:
-                if contig1.chain_id != contig2.chain_id:
-                    continue
-                overlap_start = max(contig1.start, contig2.start)
-                overlap_end = min(contig1.end, contig2.end)
-                if overlap_end >= overlap_start:
-                    overlap_len += overlap_end - overlap_start + 1
-        return overlap_len * 1.0 / self.__len__()
 
     def get_union(self, *args):
         """Get union of SequenceRanges."""
