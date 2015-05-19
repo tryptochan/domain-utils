@@ -5,6 +5,9 @@ class PDBMap(object):
     """Parse PDBML file for mappings between indexes of auth_seq_num
     + pdb_ind_code (residue index in PDB) and seq_id (starts with 1
     and includes unobserved residues).
+
+    Note PDB indexes are in string, as it needs to combine with insertion
+    code to unique and generally does not imply icreasing order.
     """
     def __init__(self, pdb):
         self.parser = expat.ParserCreate()
@@ -45,7 +48,7 @@ class PDBMap(object):
     def _end_handler(self, name):
         if name == 'PDBx:pdbx_poly_seq_scheme':
             if self._isordered:
-                self.mapping[self._chain]['seq'].append(self._seq_idx)
+                self.mapping[self._chain]['seq'].append(int(self._seq_idx))
                 self.mapping[self._chain]['pdb'].append(self._pdb_idx +
                         self._inscode)
             self._isordered = False
