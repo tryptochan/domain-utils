@@ -502,11 +502,13 @@ def trim_seq_range(seq_range, length=5):
             new_range.add_contiguous_range(contig)
     return new_range
 
-def aln2range(query, hit, query_start=1, hit_start=1, gap_tolerance=20):
+def aln2range(query, hit, query_start=1, hit_start=1, gap_tolerance=20, case_sensitive=False):
     """Convert a alignment with gaps to sequence ranges.
 
     Consider paired upper cases as aligned positions.
     Returned sequence range is 1 based.
+
+    case_sensitive: if lower case letters are considered aligned.
     """
     assert len(query) == len(hit)
     qseqr = SequenceRange()
@@ -522,7 +524,8 @@ def aln2range(query, hit, query_start=1, hit_start=1, gap_tolerance=20):
             qlet_cnt += 1
         if aah.isalpha():
             hlet_cnt += 1
-        if aaq.isalpha() and aaq.isupper() and aah.isalpha() and aah.isupper():
+        if (aaq.isalpha() and aah.isalpha() and (case_sensitive and aaq.isupper() and
+                aah.isupper() or not case_sensitive)):
             if qlet_cnt - qlast_pos - 1 > gap_tolerance:
                 contig = SequenceContiguousRange(query_start+qcontig_start-1, query_start+qlast_pos-1)
                 qseqr.add_contiguous_range(contig)
@@ -546,26 +549,38 @@ def aln2range(query, hit, query_start=1, hit_start=1, gap_tolerance=20):
         hseqr.add_contiguous_range(contig)
     return (qseqr, hseqr)
 
-def get_aligned_range(seq_range, query, hit, query_start=1, hit_start=1, **kwargs):
-    """Return corresponding range in the alignment.
+def map_aligned_range(seq_range, query, hit, query_start=1, hit_start=1, case_sensitive=False, **kwargs):
+    """Map corresponding range from query to hit, either represented by aligned
+    sequences or equivalent indexes.
 
-    Convert range on the from_sequence to the to_sequence.
+    query, hit: string or list of indexes
+    start indexes are ignored when indexes are given directly
+    case_sensitive: if lower case letters are considered aligned.
     """
     assert len(query) == len(hit)
     q_res = set()
     for contig in seq_range:
         q_res = q_res.union(range(contig.start-query_start+1, contig.end-query_start+2))
-    qlet_cnt = 0
-    hlet_cnt = 0
+
     h_res = []
-    for aaq, aah in zip(query, hit):
-        if aaq.isalpha():
-            qlet_cnt += 1
-        if aah.isalpha():
-            hlet_cnt += 1
-        if aaq.isalpha() and aaq.isupper() and aah.isalpha() and aah.isupper():
-            if qlet_cnt in q_res:
-                h_res.append(hlet_cnt+hit_start-1)
+    if isinstance(query, basestring) and isinstance(hit, basestring):
+        qlet_cnt = 0
+        hlet_cnt = 0
+        for aaq, aah in zip(query, hit):
+            if aaq.isalpha():
+                qlet_cnt += 1
+            if aah.isalpha():
+                hlet_cnt += 1
+            if (aaq.isalpha() and aah.isalpha() and (case_sensitive and aaq.isupper() and
+                    aah.isupper() or not case_sensitive)):
+                if qlet_cnt in q_res:
+                    h_res.append(hlet_cnt+hit_start-1)
+    elif isinstance(query, list) and isinstance(hit, list):
+        for iq, ih in zip(query, hit):
+            if iq in q_res:
+                h_res.append(ih)
+    else:
+        raise TypeError('Query or hit should be string of sequences or list of indexes')
     return index2range(h_res, **kwargs)
 
 def index2range(index, gap_tolerance=20, **kwargs):
@@ -573,9 +588,10 @@ def index2range(index, gap_tolerance=20, **kwargs):
     if not index:
         return None
     seq_range = SequenceRange()
-    start = index[0]
+    start = int(index[0])
     end = start
     for i in index:
+        i = int(i)
         if i - end - 1 <= gap_tolerance:
             end = i
         else:
