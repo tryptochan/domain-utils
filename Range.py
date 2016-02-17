@@ -178,6 +178,7 @@ class SequenceContiguousRange(ContiguousRange):
         new_contig = SequenceContiguousRange()
         new_contig.start = x
         new_contig.end = y
+        new_contig.chain_id = self.chain_id
 
         return new_contig
 
