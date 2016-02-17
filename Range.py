@@ -127,8 +127,14 @@ class SequenceContiguousRange(ContiguousRange):
 
     """
     def __init__(self, start=None, end=None, chain=None):
-        self.start = start
-        self.end = end
+        if start is not None:
+            self.start = int(start)
+        else:
+            self.start = None
+        if end is not None:
+            self.end = int(end)
+        else:
+            self.end = None
         self.chain_id = chain
 
     def __str__(self):
