@@ -315,7 +315,7 @@ class SequenceRange(Range):
             contiguous_string = contiguous_string.strip()
             if chain_divider in contiguous_string:
                 c = contiguous_string.index(chain_divider)
-                contig.chain_id = contiguous_string[c - 1]
+                contig.chain_id = contiguous_string[:c]
                 contiguous_string = contiguous_string[c + 1:]
             try:
                 if contiguous_string.isdigit():
